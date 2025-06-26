@@ -62,7 +62,8 @@ if 'Close' not in data.columns:
     st.stop()
 
 # Fix: Extract 'Close' as Series
-close_col = pd.to_numeric(data['Close'].squeeze(), errors='coerce')
+close_col = pd.Series(pd.to_numeric(data['Close'], errors='coerce'))  # ✅ Fixed line
+
 
 if close_col.isnull().all():
     st.error("❌ Invalid or missing closing price data.")
