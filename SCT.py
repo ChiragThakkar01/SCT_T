@@ -66,7 +66,7 @@ close_col = pd.to_numeric(data['Close'].values.flatten(), errors='coerce')
 
 
 
-if close_col.isnull().all():
+if pd.isnull(close_col).all():
     st.error("❌ Invalid or missing closing price data.")
     st.stop()
 
