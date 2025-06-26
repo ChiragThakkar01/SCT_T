@@ -62,7 +62,7 @@ if 'Close' not in data.columns:
     st.stop()
 
 # Fix: Extract 'Close' as Series
-close_col = pd.to_numeric(data['Close'].values.flatten(), errors='coerce')
+close_col = pd.to_numeric(data['Close'], errors='coerce')
 
 
 
