@@ -13,42 +13,35 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Title and description
+# Title
 st.title("📈 Stock Comparison Tool")
 
-# Sidebar input
+# Sidebar
 st.sidebar.header("User Input")
 
-# Popular tickers
 popular = st.sidebar.selectbox(
     "Choose a popular stock:",
     ["None", "AAPL", "MSFT", "GOOGL", "TSLA", "INFY.NS", "TCS.NS"]
 )
 
-# Manual input
 ticker = st.sidebar.text_input("Or enter a stock ticker:", "").upper()
-
-# Use popular if selected
 if popular != "None":
     ticker = popular
 
-# Guard clause
 if not ticker:
     st.warning("Please select or enter a ticker symbol from the sidebar.")
     st.stop()
 
-# Date input
 start_date = st.sidebar.date_input("Start Date", pd.to_datetime("2022-01-01"))
 end_date = st.sidebar.date_input("End Date", pd.to_datetime("2024-12-31"))
 
-# Indicator selection
 indicators = st.sidebar.multiselect(
     "Select Technical Indicators",
     ['SMA (20)', 'EMA (20)', 'RSI', 'MACD'],
     default=['SMA (20)', 'RSI']
 )
 
-# Load stock data
+# Load data
 @st.cache_data
 def load_data(ticker, start, end):
     df = yf.download(ticker, start=start, end=end)
@@ -57,20 +50,18 @@ def load_data(ticker, start, end):
 
 data = load_data(ticker, start_date, end_date)
 
+# Validate 'Close'
 if 'Close' not in data.columns:
     st.error("❌ 'Close' column not found in data.")
     st.stop()
 
-# Fix: Extract 'Close' as Series
-close_col = pd.to_numeric(data['Close'], errors='coerce')
+close_col = data['Close']  # ✅ FIXED: keep as Series
 
-
-
-if pd.isnull(close_col).all():
+if close_col.isnull().all():
     st.error("❌ Invalid or missing closing price data.")
     st.stop()
 
-# Technical Indicators
+# Technical indicators
 if 'SMA (20)' in indicators:
     data['SMA20'] = ta.trend.sma_indicator(close=close_col, window=20)
 
@@ -82,11 +73,11 @@ if 'RSI' in indicators:
 
 if 'MACD' in indicators:
     try:
-        macd_obj = ta.trend.macd(close=close_col)
-        data['MACD'] = macd_obj.macd()
-        data['Signal_Line'] = macd_obj.macd_signal()
+        macd = ta.trend.macd(close=close_col)
+        data['MACD'] = macd.macd()
+        data['Signal_Line'] = macd.macd_signal()
     except Exception as e:
-        st.warning(f"⚠ MACD error: {e}")
+        st.warning(f"MACD error: {e}")
         data['MACD'] = data['Signal_Line'] = None
 
 # Candlestick chart
@@ -104,14 +95,10 @@ if 'SMA (20)' in indicators and 'SMA20' in data:
     fig.add_trace(go.Scatter(x=data['Date'], y=data['SMA20'], name='SMA 20', line=dict(color='blue')))
 if 'EMA (20)' in indicators and 'EMA20' in data:
     fig.add_trace(go.Scatter(x=data['Date'], y=data['EMA20'], name='EMA 20', line=dict(color='orange')))
-fig.update_layout(
-    xaxis_rangeslider_visible=False,
-    template='plotly_white',
-    height=600
-)
+fig.update_layout(xaxis_rangeslider_visible=False, template='plotly_white', height=600)
 st.plotly_chart(fig, use_container_width=True)
 
-# RSI
+# RSI chart
 if 'RSI' in indicators and 'RSI' in data:
     st.subheader("📊 RSI (Relative Strength Index)")
     fig_rsi = go.Figure()
@@ -121,7 +108,7 @@ if 'RSI' in indicators and 'RSI' in data:
     fig_rsi.update_layout(template='plotly_white', height=300)
     st.plotly_chart(fig_rsi, use_container_width=True)
 
-# MACD
+# MACD chart
 if 'MACD' in indicators and data.get('MACD') is not None:
     st.subheader("📊 MACD")
     fig_macd = go.Figure()
@@ -130,7 +117,7 @@ if 'MACD' in indicators and data.get('MACD') is not None:
     fig_macd.update_layout(template='plotly_white', height=300)
     st.plotly_chart(fig_macd, use_container_width=True)
 
-# Metrics
+# Key Metrics
 st.subheader("📈 Key Metrics")
 col1, col2, col3 = st.columns(3)
 col1.metric("Latest Close", f"${float(data['Close'].iloc[-1]):.2f}")
@@ -153,28 +140,28 @@ col7.metric("Debt/Equity", f"{info.get('debtToEquity', 'N/A')}")
 col8.metric("P/B Ratio", f"{info.get('priceToBook', 'N/A')}")
 col9.metric("Market Cap", f"${info.get('marketCap', 0):,.0f}")
 
-# Insights
+# Investment Insights
 st.subheader("💡 Investment Insights")
 if 'RSI' in indicators and 'RSI' in data:
-    latest_rsi = data['RSI'].iloc[-1]
-    if latest_rsi > 70:
+    rsi = data['RSI'].iloc[-1]
+    if rsi > 70:
         st.warning("RSI indicates the stock is overbought – Consider waiting.")
-    elif latest_rsi < 30:
+    elif rsi < 30:
         st.success("RSI indicates oversold – Possible buying opportunity.")
     else:
         st.info("RSI is neutral.")
 
 if 'MACD' in indicators and data.get('MACD') is not None:
-    macd_curr = data['MACD'].iloc[-1]
-    signal_curr = data['Signal_Line'].iloc[-1]
-    if macd_curr > signal_curr:
+    macd_val = data['MACD'].iloc[-1]
+    signal_val = data['Signal_Line'].iloc[-1]
+    if macd_val > signal_val:
         st.success("MACD crossover: Bullish signal.")
-    elif macd_curr < signal_curr:
+    elif macd_val < signal_val:
         st.warning("MACD crossover: Bearish signal.")
     else:
         st.info("MACD is neutral.")
 
-# News sentiment
+# News Sentiment
 st.subheader("🗞 News Sentiment Analysis")
 try:
     news = ticker_obj.news
